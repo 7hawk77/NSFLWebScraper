@@ -4,6 +4,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using System.Configuration;
+using HtmlAgilityPack;
 
 namespace WebScaper
 {
@@ -16,20 +17,30 @@ namespace WebScaper
 
             #region Sabercats
             {
+
                 HtmlAgilityPack.HtmlDocument doc = web.Load(ConfigurationManager.AppSettings["SJS1"].ToString());
                 HtmlAgilityPack.HtmlDocument doc2 = web.Load(ConfigurationManager.AppSettings["SJS2"].ToString());
-                HtmlAgilityPack.HtmlDocument doc3 = web.Load(ConfigurationManager.AppSettings["SJS3"].ToString());
-
-
-                //This selects all of the elements for the player name. Unfortunately it also selects the amount of replies which I will have to remove later.
+                HtmlAgilityPack.HtmlDocument doc3 = null;
                 var PlayerNames = doc.DocumentNode
                     .SelectNodes(ConfigurationManager.AppSettings["PlayerNodes"].ToString()).ToList();
-
+                
                 PlayerNames.AddRange(doc2.DocumentNode
                     .SelectNodes(ConfigurationManager.AppSettings["PlayerNodes"].ToString()).ToList());
 
-                PlayerNames.AddRange(doc3.DocumentNode
-                    .SelectNodes(ConfigurationManager.AppSettings["PlayerNodes"].ToString()).ToList());
+                int pagecount = (Convert.ToInt32(ConfigurationManager.AppSettings["SJSPageCount"]));
+
+                if (pagecount == 3)
+                {
+                    doc3 = web.Load(ConfigurationManager.AppSettings["SJS3"].ToString());
+                    PlayerNames.AddRange(doc3.DocumentNode
+                        .SelectNodes(ConfigurationManager.AppSettings["PlayerNodes"].ToString()).ToList());
+
+                }
+
+                //This selects all of the elements for the player name. Unfortunately it also selects the amount of replies which I will have to remove later.
+
+
+                PlayerNames.ForEach(x => x.InnerHtml = x.InnerHtml.Replace("&#39;", "'"));
 
                 //This removes the reply count from the Player Names list
                 RemoveRepliesFromPlayerNames(PlayerNames);
@@ -41,17 +52,33 @@ namespace WebScaper
                 PlayerTPE.AddRange(doc2.DocumentNode
                     .SelectNodes(ConfigurationManager.AppSettings["TPENodes"].ToString()).ToList());
 
-                PlayerTPE.AddRange(doc3.DocumentNode
-                    .SelectNodes(ConfigurationManager.AppSettings["TPENodes"].ToString()).ToList());
+                if (pagecount == 3)
+                {
+                    PlayerTPE.AddRange(doc3.DocumentNode
+                        .SelectNodes(ConfigurationManager.AppSettings["TPENodes"].ToString()).ToList());
+                }
+
+                int switcher = 1;
+                List<string> href1 = new List<string>();
+                GetURLs(doc, switcher, href1);
+                switcher = 1;
+                GetURLs(doc2, switcher, href1);
+                switcher = 1;
+                if(pagecount==3)
+                {
+                    GetURLs(doc3, switcher, href1);
+                }
 
                 //This combines the player Name and the PlayerName
                 var NameAndTPE = PlayerNames.Zip(PlayerTPE, (n, t) => new { PlayerNames = n, PlayerTPE = t });
 
-                System.IO.StreamWriter file1 = new System.IO.StreamWriter(ConfigurationManager.AppSettings["LocalPath"]+"SJSPlayers.txt");
-                foreach (var nt in NameAndTPE)
+                var NameAndTPEAndURL = NameAndTPE.Zip(href1, (x, y) => new { NameAndTPE = x, href1 = y });
+
+                System.IO.StreamWriter file1 = new System.IO.StreamWriter(ConfigurationManager.AppSettings["LocalPath"] + "SJSPlayers.txt");
+                foreach (var nt in NameAndTPEAndURL)
                 {
                     //I need to output this to a text file named SabercatsPlayers
-                    file1.WriteLine(nt.PlayerNames.InnerText + "," + nt.PlayerTPE.InnerText + ",");
+                    file1.WriteLine(nt.NameAndTPE.PlayerNames.InnerText + "," + nt.NameAndTPE.PlayerTPE.InnerText + ", " + nt.href1.ToString());
                 }
 
                 file1.Close();
@@ -66,7 +93,7 @@ namespace WebScaper
                     Total.Add(Convert.ToInt32(splitAgain[1]));
                 }
 
-                System.IO.StreamWriter file2 = new System.IO.StreamWriter(ConfigurationManager.AppSettings["LocalPath"]+"SJSTeam.txt");
+                System.IO.StreamWriter file2 = new System.IO.StreamWriter(ConfigurationManager.AppSettings["LocalPath"] + "SJSTeam.txt");
 
                 file2.WriteLine("San Jose Sabercats' TPE: " + Total.Sum());
                 file2.Close();
@@ -76,16 +103,30 @@ namespace WebScaper
 
             #region Hawks
             {
+
                 HtmlAgilityPack.HtmlDocument doc = web.Load(ConfigurationManager.AppSettings["BH1"].ToString());
                 HtmlAgilityPack.HtmlDocument doc2 = web.Load(ConfigurationManager.AppSettings["BH2"].ToString());
-
-
-                //This selects all of the elements for the player name. Unfortunately it also selects the amount of replies which I will have to remove later.
+                HtmlAgilityPack.HtmlDocument doc3 = null;
                 var PlayerNames = doc.DocumentNode
                     .SelectNodes(ConfigurationManager.AppSettings["PlayerNodes"].ToString()).ToList();
 
                 PlayerNames.AddRange(doc2.DocumentNode
                     .SelectNodes(ConfigurationManager.AppSettings["PlayerNodes"].ToString()).ToList());
+
+                int pagecount = (Convert.ToInt32(ConfigurationManager.AppSettings["BHPageCount"]));
+
+                if (pagecount == 3)
+                {
+                    doc3 = web.Load(ConfigurationManager.AppSettings["BH3"].ToString());
+                    PlayerNames.AddRange(doc3.DocumentNode
+                        .SelectNodes(ConfigurationManager.AppSettings["PlayerNodes"].ToString()).ToList());
+
+                }
+
+                //This selects all of the elements for the player name. Unfortunately it also selects the amount of replies which I will have to remove later.
+
+
+                PlayerNames.ForEach(x => x.InnerHtml = x.InnerHtml.Replace("&#39;", "'"));
 
                 //This removes the reply count from the Player Names list
                 RemoveRepliesFromPlayerNames(PlayerNames);
@@ -97,22 +138,80 @@ namespace WebScaper
                 PlayerTPE.AddRange(doc2.DocumentNode
                     .SelectNodes(ConfigurationManager.AppSettings["TPENodes"].ToString()).ToList());
 
+                if (pagecount == 3)
+                {
+                    PlayerTPE.AddRange(doc3.DocumentNode
+                        .SelectNodes(ConfigurationManager.AppSettings["TPENodes"].ToString()).ToList());
+                }
+
+                int switcher = 1;
+                List<string> href1 = new List<string>();
+                foreach (HtmlNode node in doc.DocumentNode.SelectNodes(ConfigurationManager.AppSettings["PlayerURL"]))
+                {
+                    if (switcher == 1)
+                    {
+                        String[] x = node.OuterHtml.Split('"');
+
+                        href1.Add(x[1].ToString());
+                        switcher *= -1;
+                    }
+                    else
+                    {
+                        switcher *= -1;
+                    }
+                }
+
+                switcher = 1;
+                foreach (HtmlNode node in doc2.DocumentNode.SelectNodes(ConfigurationManager.AppSettings["PlayerURL"]))
+                {
+                    if (switcher == 1)
+                    {
+                        String[] x = node.OuterHtml.Split('"');
+
+                        href1.Add(x[1].ToString());
+                        switcher *= -1;
+                    }
+                    else
+                    {
+                        switcher *= -1;
+                    }
+                }
+
+                switcher = 1;
+                foreach (HtmlNode node in doc3.DocumentNode.SelectNodes(ConfigurationManager.AppSettings["PlayerURL"]))
+                {
+                    if (switcher == 1)
+                    {
+                        String[] x = node.OuterHtml.Split('"');
+
+                        href1.Add(x[1].ToString());
+                        switcher *= -1;
+                    }
+                    else
+                    {
+                        switcher *= -1;
+                    }
+                }
+
+
                 //This combines the player Name and the PlayerName
                 var NameAndTPE = PlayerNames.Zip(PlayerTPE, (n, t) => new { PlayerNames = n, PlayerTPE = t });
 
+                var NameAndTPEAndURL = NameAndTPE.Zip(href1, (x, y) => new { NameAndTPE = x, href1 = y });
+
                 System.IO.StreamWriter file1 = new System.IO.StreamWriter(ConfigurationManager.AppSettings["LocalPath"] + "BHPlayers.txt");
-                foreach (var nt in NameAndTPE)
+                foreach (var nt in NameAndTPEAndURL)
                 {
                     //I need to output this to a text file named SabercatsPlayers
-                    file1.WriteLine(nt.PlayerNames.InnerText + "," + nt.PlayerTPE.InnerText + ",");
+                    file1.WriteLine(nt.NameAndTPE.PlayerNames.InnerText + "," + nt.NameAndTPE.PlayerTPE.InnerText + ", " + nt.href1.ToString());
                 }
 
                 file1.Close();
                 file1.Dispose();
 
-                string[] SJSTPETotal = System.IO.File.ReadAllLines(ConfigurationManager.AppSettings["LocalPath"] + "BHPlayers.txt");
+                string[] BHTPETotal = System.IO.File.ReadAllLines(ConfigurationManager.AppSettings["LocalPath"] + "BHPlayers.txt");
                 List<int> Total = new List<int>();
-                foreach (string line in SJSTPETotal)
+                foreach (string line in BHTPETotal)
                 {
                     string[] splitwords = line.Split(',');
                     string[] splitAgain = splitwords[1].Split(':');
@@ -121,25 +220,38 @@ namespace WebScaper
 
                 System.IO.StreamWriter file2 = new System.IO.StreamWriter(ConfigurationManager.AppSettings["LocalPath"] + "BHTeam.txt");
 
-                file2.WriteLine("Baltimore Hawk's TPE: " + Total.Sum());
+                file2.WriteLine("Baltimore Hawks' TPE: " + Total.Sum());
                 file2.Close();
                 file2.Dispose();
             }
-
             #endregion
 
             #region Yeti
             {
+
                 HtmlAgilityPack.HtmlDocument doc = web.Load(ConfigurationManager.AppSettings["CY1"].ToString());
                 HtmlAgilityPack.HtmlDocument doc2 = web.Load(ConfigurationManager.AppSettings["CY2"].ToString());
-
-
-                //This selects all of the elements for the player name. Unfortunately it also selects the amount of replies which I will have to remove later.
+                HtmlAgilityPack.HtmlDocument doc3 = null;
                 var PlayerNames = doc.DocumentNode
                     .SelectNodes(ConfigurationManager.AppSettings["PlayerNodes"].ToString()).ToList();
 
                 PlayerNames.AddRange(doc2.DocumentNode
                     .SelectNodes(ConfigurationManager.AppSettings["PlayerNodes"].ToString()).ToList());
+
+                int pagecount = (Convert.ToInt32(ConfigurationManager.AppSettings["CYPageCount"]));
+
+                if (pagecount == 3)
+                {
+                    doc3 = web.Load(ConfigurationManager.AppSettings["CY3"].ToString());
+                    PlayerNames.AddRange(doc3.DocumentNode
+                        .SelectNodes(ConfigurationManager.AppSettings["PlayerNodes"].ToString()).ToList());
+
+                }
+
+                //This selects all of the elements for the player name. Unfortunately it also selects the amount of replies which I will have to remove later.
+
+
+                PlayerNames.ForEach(x => x.InnerHtml = x.InnerHtml.Replace("&#39;", "'"));
 
                 //This removes the reply count from the Player Names list
                 RemoveRepliesFromPlayerNames(PlayerNames);
@@ -151,22 +263,80 @@ namespace WebScaper
                 PlayerTPE.AddRange(doc2.DocumentNode
                     .SelectNodes(ConfigurationManager.AppSettings["TPENodes"].ToString()).ToList());
 
+                if (pagecount == 3)
+                {
+                    PlayerTPE.AddRange(doc3.DocumentNode
+                        .SelectNodes(ConfigurationManager.AppSettings["TPENodes"].ToString()).ToList());
+                }
+
+                int switcher = 1;
+                List<string> href1 = new List<string>();
+                foreach (HtmlNode node in doc.DocumentNode.SelectNodes(ConfigurationManager.AppSettings["PlayerURL"]))
+                {
+                    if (switcher == 1)
+                    {
+                        String[] x = node.OuterHtml.Split('"');
+
+                        href1.Add(x[1].ToString());
+                        switcher *= -1;
+                    }
+                    else
+                    {
+                        switcher *= -1;
+                    }
+                }
+
+                switcher = 1;
+                foreach (HtmlNode node in doc2.DocumentNode.SelectNodes(ConfigurationManager.AppSettings["PlayerURL"]))
+                {
+                    if (switcher == 1)
+                    {
+                        String[] x = node.OuterHtml.Split('"');
+
+                        href1.Add(x[1].ToString());
+                        switcher *= -1;
+                    }
+                    else
+                    {
+                        switcher *= -1;
+                    }
+                }
+
+                switcher = 1;
+                foreach (HtmlNode node in doc3.DocumentNode.SelectNodes(ConfigurationManager.AppSettings["PlayerURL"]))
+                {
+                    if (switcher == 1)
+                    {
+                        String[] x = node.OuterHtml.Split('"');
+
+                        href1.Add(x[1].ToString());
+                        switcher *= -1;
+                    }
+                    else
+                    {
+                        switcher *= -1;
+                    }
+                }
+
+
                 //This combines the player Name and the PlayerName
                 var NameAndTPE = PlayerNames.Zip(PlayerTPE, (n, t) => new { PlayerNames = n, PlayerTPE = t });
 
+                var NameAndTPEAndURL = NameAndTPE.Zip(href1, (x, y) => new { NameAndTPE = x, href1 = y });
+
                 System.IO.StreamWriter file1 = new System.IO.StreamWriter(ConfigurationManager.AppSettings["LocalPath"] + "CYPlayers.txt");
-                foreach (var nt in NameAndTPE)
+                foreach (var nt in NameAndTPEAndURL)
                 {
                     //I need to output this to a text file named SabercatsPlayers
-                    file1.WriteLine(nt.PlayerNames.InnerText + "," + nt.PlayerTPE.InnerText + ",");
+                    file1.WriteLine(nt.NameAndTPE.PlayerNames.InnerText + "," + nt.NameAndTPE.PlayerTPE.InnerText + ", " + nt.href1.ToString());
                 }
 
                 file1.Close();
                 file1.Dispose();
 
-                string[] SJSTPETotal = System.IO.File.ReadAllLines(ConfigurationManager.AppSettings["LocalPath"] + "CYPlayers.txt");
+                string[] CYTPETotal = System.IO.File.ReadAllLines(ConfigurationManager.AppSettings["LocalPath"] + "CYPlayers.txt");
                 List<int> Total = new List<int>();
-                foreach (string line in SJSTPETotal)
+                foreach (string line in CYTPETotal)
                 {
                     string[] splitwords = line.Split(',');
                     string[] splitAgain = splitwords[1].Split(':');
@@ -175,7 +345,7 @@ namespace WebScaper
 
                 System.IO.StreamWriter file2 = new System.IO.StreamWriter(ConfigurationManager.AppSettings["LocalPath"] + "CYTeam.txt");
 
-                file2.WriteLine("Colorado Yeti TPE: " + Total.Sum());
+                file2.WriteLine("Colorado Yeti's TPE: " + Total.Sum());
                 file2.Close();
                 file2.Dispose();
             }
@@ -184,16 +354,30 @@ namespace WebScaper
 
             #region Liberty
             {
+
                 HtmlAgilityPack.HtmlDocument doc = web.Load(ConfigurationManager.AppSettings["PL1"].ToString());
                 HtmlAgilityPack.HtmlDocument doc2 = web.Load(ConfigurationManager.AppSettings["PL2"].ToString());
-
-
-                //This selects all of the elements for the player name. Unfortunately it also selects the amount of replies which I will have to remove later.
+                HtmlAgilityPack.HtmlDocument doc3 = null;
                 var PlayerNames = doc.DocumentNode
                     .SelectNodes(ConfigurationManager.AppSettings["PlayerNodes"].ToString()).ToList();
 
                 PlayerNames.AddRange(doc2.DocumentNode
                     .SelectNodes(ConfigurationManager.AppSettings["PlayerNodes"].ToString()).ToList());
+
+                int pagecount = (Convert.ToInt32(ConfigurationManager.AppSettings["PLPageCount"]));
+
+                if (pagecount == 3)
+                {
+                    doc3 = web.Load(ConfigurationManager.AppSettings["PL3"].ToString());
+                    PlayerNames.AddRange(doc3.DocumentNode
+                        .SelectNodes(ConfigurationManager.AppSettings["PlayerNodes"].ToString()).ToList());
+
+                }
+
+                //This selects all of the elements for the player name. Unfortunately it also selects the amount of replies which I will have to remove later.
+
+
+                PlayerNames.ForEach(x => x.InnerHtml = x.InnerHtml.Replace("&#39;", "'"));
 
                 //This removes the reply count from the Player Names list
                 RemoveRepliesFromPlayerNames(PlayerNames);
@@ -205,22 +389,80 @@ namespace WebScaper
                 PlayerTPE.AddRange(doc2.DocumentNode
                     .SelectNodes(ConfigurationManager.AppSettings["TPENodes"].ToString()).ToList());
 
+                if (pagecount == 3)
+                {
+                    PlayerTPE.AddRange(doc3.DocumentNode
+                        .SelectNodes(ConfigurationManager.AppSettings["TPENodes"].ToString()).ToList());
+                }
+
+                int switcher = 1;
+                List<string> href1 = new List<string>();
+                foreach (HtmlNode node in doc.DocumentNode.SelectNodes(ConfigurationManager.AppSettings["PlayerURL"]))
+                {
+                    if (switcher == 1)
+                    {
+                        String[] x = node.OuterHtml.Split('"');
+
+                        href1.Add(x[1].ToString());
+                        switcher *= -1;
+                    }
+                    else
+                    {
+                        switcher *= -1;
+                    }
+                }
+
+                switcher = 1;
+                foreach (HtmlNode node in doc2.DocumentNode.SelectNodes(ConfigurationManager.AppSettings["PlayerURL"]))
+                {
+                    if (switcher == 1)
+                    {
+                        String[] x = node.OuterHtml.Split('"');
+
+                        href1.Add(x[1].ToString());
+                        switcher *= -1;
+                    }
+                    else
+                    {
+                        switcher *= -1;
+                    }
+                }
+
+                switcher = 1;
+                foreach (HtmlNode node in doc3.DocumentNode.SelectNodes(ConfigurationManager.AppSettings["PlayerURL"]))
+                {
+                    if (switcher == 1)
+                    {
+                        String[] x = node.OuterHtml.Split('"');
+
+                        href1.Add(x[1].ToString());
+                        switcher *= -1;
+                    }
+                    else
+                    {
+                        switcher *= -1;
+                    }
+                }
+
+
                 //This combines the player Name and the PlayerName
                 var NameAndTPE = PlayerNames.Zip(PlayerTPE, (n, t) => new { PlayerNames = n, PlayerTPE = t });
 
+                var NameAndTPEAndURL = NameAndTPE.Zip(href1, (x, y) => new { NameAndTPE = x, href1 = y });
+
                 System.IO.StreamWriter file1 = new System.IO.StreamWriter(ConfigurationManager.AppSettings["LocalPath"] + "PLPlayers.txt");
-                foreach (var nt in NameAndTPE)
+                foreach (var nt in NameAndTPEAndURL)
                 {
                     //I need to output this to a text file named SabercatsPlayers
-                    file1.WriteLine(nt.PlayerNames.InnerText + "," + nt.PlayerTPE.InnerText + ",");
+                    file1.WriteLine(nt.NameAndTPE.PlayerNames.InnerText + "," + nt.NameAndTPE.PlayerTPE.InnerText + ", " + nt.href1.ToString());
                 }
 
                 file1.Close();
                 file1.Dispose();
 
-                string[] SJSTPETotal = System.IO.File.ReadAllLines(ConfigurationManager.AppSettings["LocalPath"] + "PLPlayers.txt");
+                string[] PLTPETotal = System.IO.File.ReadAllLines(ConfigurationManager.AppSettings["LocalPath"] + "PLPlayers.txt");
                 List<int> Total = new List<int>();
-                foreach (string line in SJSTPETotal)
+                foreach (string line in PLTPETotal)
                 {
                     string[] splitwords = line.Split(',');
                     string[] splitAgain = splitwords[1].Split(':');
@@ -238,20 +480,30 @@ namespace WebScaper
 
             #region Wraiths
             {
+
                 HtmlAgilityPack.HtmlDocument doc = web.Load(ConfigurationManager.AppSettings["YW1"].ToString());
                 HtmlAgilityPack.HtmlDocument doc2 = web.Load(ConfigurationManager.AppSettings["YW2"].ToString());
-                HtmlAgilityPack.HtmlDocument doc3 = web.Load(ConfigurationManager.AppSettings["YW3"].ToString());
-
-
-                //This selects all of the elements for the player name. Unfortunately it also selects the amount of replies which I will have to remove later.
+                HtmlAgilityPack.HtmlDocument doc3 = null;
                 var PlayerNames = doc.DocumentNode
                     .SelectNodes(ConfigurationManager.AppSettings["PlayerNodes"].ToString()).ToList();
 
                 PlayerNames.AddRange(doc2.DocumentNode
                     .SelectNodes(ConfigurationManager.AppSettings["PlayerNodes"].ToString()).ToList());
 
-                PlayerNames.AddRange(doc3.DocumentNode
-                    .SelectNodes(ConfigurationManager.AppSettings["PlayerNodes"].ToString()).ToList());
+                int pagecount = (Convert.ToInt32(ConfigurationManager.AppSettings["YWPageCount"]));
+
+                if (pagecount == 3)
+                {
+                    doc3 = web.Load(ConfigurationManager.AppSettings["YW3"].ToString());
+                    PlayerNames.AddRange(doc3.DocumentNode
+                        .SelectNodes(ConfigurationManager.AppSettings["PlayerNodes"].ToString()).ToList());
+
+                }
+
+                //This selects all of the elements for the player name. Unfortunately it also selects the amount of replies which I will have to remove later.
+
+
+                PlayerNames.ForEach(x => x.InnerHtml = x.InnerHtml.Replace("&#39;", "'"));
 
                 //This removes the reply count from the Player Names list
                 RemoveRepliesFromPlayerNames(PlayerNames);
@@ -263,25 +515,80 @@ namespace WebScaper
                 PlayerTPE.AddRange(doc2.DocumentNode
                     .SelectNodes(ConfigurationManager.AppSettings["TPENodes"].ToString()).ToList());
 
-                PlayerTPE.AddRange(doc3.DocumentNode
-                    .SelectNodes(ConfigurationManager.AppSettings["TPENodes"].ToString()).ToList());
+                if (pagecount == 3)
+                {
+                    PlayerTPE.AddRange(doc3.DocumentNode
+                        .SelectNodes(ConfigurationManager.AppSettings["TPENodes"].ToString()).ToList());
+                }
+
+                int switcher = 1;
+                List<string> href1 = new List<string>();
+                foreach (HtmlNode node in doc.DocumentNode.SelectNodes(ConfigurationManager.AppSettings["PlayerURL"]))
+                {
+                    if (switcher == 1)
+                    {
+                        String[] x = node.OuterHtml.Split('"');
+
+                        href1.Add(x[1].ToString());
+                        switcher *= -1;
+                    }
+                    else
+                    {
+                        switcher *= -1;
+                    }
+                }
+
+                switcher = 1;
+                foreach (HtmlNode node in doc2.DocumentNode.SelectNodes(ConfigurationManager.AppSettings["PlayerURL"]))
+                {
+                    if (switcher == 1)
+                    {
+                        String[] x = node.OuterHtml.Split('"');
+
+                        href1.Add(x[1].ToString());
+                        switcher *= -1;
+                    }
+                    else
+                    {
+                        switcher *= -1;
+                    }
+                }
+
+                switcher = 1;
+                foreach (HtmlNode node in doc3.DocumentNode.SelectNodes(ConfigurationManager.AppSettings["PlayerURL"]))
+                {
+                    if (switcher == 1)
+                    {
+                        String[] x = node.OuterHtml.Split('"');
+
+                        href1.Add(x[1].ToString());
+                        switcher *= -1;
+                    }
+                    else
+                    {
+                        switcher *= -1;
+                    }
+                }
+
 
                 //This combines the player Name and the PlayerName
                 var NameAndTPE = PlayerNames.Zip(PlayerTPE, (n, t) => new { PlayerNames = n, PlayerTPE = t });
 
+                var NameAndTPEAndURL = NameAndTPE.Zip(href1, (x, y) => new { NameAndTPE = x, href1 = y });
+
                 System.IO.StreamWriter file1 = new System.IO.StreamWriter(ConfigurationManager.AppSettings["LocalPath"] + "YWPlayers.txt");
-                foreach (var nt in NameAndTPE)
+                foreach (var nt in NameAndTPEAndURL)
                 {
                     //I need to output this to a text file named SabercatsPlayers
-                    file1.WriteLine(nt.PlayerNames.InnerText + "," + nt.PlayerTPE.InnerText + ",");
+                    file1.WriteLine(nt.NameAndTPE.PlayerNames.InnerText + "," + nt.NameAndTPE.PlayerTPE.InnerText + ", " + nt.href1.ToString());
                 }
 
                 file1.Close();
                 file1.Dispose();
 
-                string[] SJSTPETotal = System.IO.File.ReadAllLines(ConfigurationManager.AppSettings["LocalPath"] + "YWPlayers.txt");
+                string[] YWTPETotal = System.IO.File.ReadAllLines(ConfigurationManager.AppSettings["LocalPath"] + "YWPlayers.txt");
                 List<int> Total = new List<int>();
-                foreach (string line in SJSTPETotal)
+                foreach (string line in YWTPETotal)
                 {
                     string[] splitwords = line.Split(',');
                     string[] splitAgain = splitwords[1].Split(':');
@@ -298,20 +605,30 @@ namespace WebScaper
 
             #region Outlaws
             {
+
                 HtmlAgilityPack.HtmlDocument doc = web.Load(ConfigurationManager.AppSettings["AO1"].ToString());
                 HtmlAgilityPack.HtmlDocument doc2 = web.Load(ConfigurationManager.AppSettings["AO2"].ToString());
-                HtmlAgilityPack.HtmlDocument doc3 = web.Load(ConfigurationManager.AppSettings["AO3"].ToString());
-
-
-                //This selects all of the elements for the player name. Unfortunately it also selects the amount of replies which I will have to remove later.
+                HtmlAgilityPack.HtmlDocument doc3 = null;
                 var PlayerNames = doc.DocumentNode
                     .SelectNodes(ConfigurationManager.AppSettings["PlayerNodes"].ToString()).ToList();
 
                 PlayerNames.AddRange(doc2.DocumentNode
                     .SelectNodes(ConfigurationManager.AppSettings["PlayerNodes"].ToString()).ToList());
 
-                PlayerNames.AddRange(doc3.DocumentNode
-                    .SelectNodes(ConfigurationManager.AppSettings["PlayerNodes"].ToString()).ToList());
+                int pagecount = (Convert.ToInt32(ConfigurationManager.AppSettings["AOPageCount"]));
+
+                if (pagecount == 3)
+                {
+                    doc3 = web.Load(ConfigurationManager.AppSettings["AO3"].ToString());
+                    PlayerNames.AddRange(doc3.DocumentNode
+                        .SelectNodes(ConfigurationManager.AppSettings["PlayerNodes"].ToString()).ToList());
+
+                }
+
+                //This selects all of the elements for the player name. Unfortunately it also selects the amount of replies which I will have to remove later.
+
+
+                PlayerNames.ForEach(x => x.InnerHtml = x.InnerHtml.Replace("&#39;", "'"));
 
                 //This removes the reply count from the Player Names list
                 RemoveRepliesFromPlayerNames(PlayerNames);
@@ -323,25 +640,80 @@ namespace WebScaper
                 PlayerTPE.AddRange(doc2.DocumentNode
                     .SelectNodes(ConfigurationManager.AppSettings["TPENodes"].ToString()).ToList());
 
-                PlayerTPE.AddRange(doc3.DocumentNode
-                    .SelectNodes(ConfigurationManager.AppSettings["TPENodes"].ToString()).ToList());
+                if (pagecount == 3)
+                {
+                    PlayerTPE.AddRange(doc3.DocumentNode
+                        .SelectNodes(ConfigurationManager.AppSettings["TPENodes"].ToString()).ToList());
+                }
+
+                int switcher = 1;
+                List<string> href1 = new List<string>();
+                foreach (HtmlNode node in doc.DocumentNode.SelectNodes(ConfigurationManager.AppSettings["PlayerURL"]))
+                {
+                    if (switcher == 1)
+                    {
+                        String[] x = node.OuterHtml.Split('"');
+
+                        href1.Add(x[1].ToString());
+                        switcher *= -1;
+                    }
+                    else
+                    {
+                        switcher *= -1;
+                    }
+                }
+
+                switcher = 1;
+                foreach (HtmlNode node in doc2.DocumentNode.SelectNodes(ConfigurationManager.AppSettings["PlayerURL"]))
+                {
+                    if (switcher == 1)
+                    {
+                        String[] x = node.OuterHtml.Split('"');
+
+                        href1.Add(x[1].ToString());
+                        switcher *= -1;
+                    }
+                    else
+                    {
+                        switcher *= -1;
+                    }
+                }
+
+                switcher = 1;
+                foreach (HtmlNode node in doc3.DocumentNode.SelectNodes(ConfigurationManager.AppSettings["PlayerURL"]))
+                {
+                    if (switcher == 1)
+                    {
+                        String[] x = node.OuterHtml.Split('"');
+
+                        href1.Add(x[1].ToString());
+                        switcher *= -1;
+                    }
+                    else
+                    {
+                        switcher *= -1;
+                    }
+                }
+
 
                 //This combines the player Name and the PlayerName
                 var NameAndTPE = PlayerNames.Zip(PlayerTPE, (n, t) => new { PlayerNames = n, PlayerTPE = t });
 
+                var NameAndTPEAndURL = NameAndTPE.Zip(href1, (x, y) => new { NameAndTPE = x, href1 = y });
+
                 System.IO.StreamWriter file1 = new System.IO.StreamWriter(ConfigurationManager.AppSettings["LocalPath"] + "AOPlayers.txt");
-                foreach (var nt in NameAndTPE)
+                foreach (var nt in NameAndTPEAndURL)
                 {
                     //I need to output this to a text file named SabercatsPlayers
-                    file1.WriteLine(nt.PlayerNames.InnerText + "," + nt.PlayerTPE.InnerText + ",");
+                    file1.WriteLine(nt.NameAndTPE.PlayerNames.InnerText + "," + nt.NameAndTPE.PlayerTPE.InnerText + ", " + nt.href1.ToString());
                 }
 
                 file1.Close();
                 file1.Dispose();
 
-                string[] SJSTPETotal = System.IO.File.ReadAllLines(ConfigurationManager.AppSettings["LocalPath"] + "AOPlayers.txt");
+                string[] AOTPETotal = System.IO.File.ReadAllLines(ConfigurationManager.AppSettings["LocalPath"] + "AOPlayers.txt");
                 List<int> Total = new List<int>();
-                foreach (string line in SJSTPETotal)
+                foreach (string line in AOTPETotal)
                 {
                     string[] splitwords = line.Split(',');
                     string[] splitAgain = splitwords[1].Split(':');
@@ -358,16 +730,30 @@ namespace WebScaper
 
             #region Legion
             {
+
                 HtmlAgilityPack.HtmlDocument doc = web.Load(ConfigurationManager.AppSettings["LVL1"].ToString());
                 HtmlAgilityPack.HtmlDocument doc2 = web.Load(ConfigurationManager.AppSettings["LVL2"].ToString());
-
-
-                //This selects all of the elements for the player name. Unfortunately it also selects the amount of replies which I will have to remove later.
+                HtmlAgilityPack.HtmlDocument doc3 = null;
                 var PlayerNames = doc.DocumentNode
                     .SelectNodes(ConfigurationManager.AppSettings["PlayerNodes"].ToString()).ToList();
 
                 PlayerNames.AddRange(doc2.DocumentNode
                     .SelectNodes(ConfigurationManager.AppSettings["PlayerNodes"].ToString()).ToList());
+
+                int pagecount = (Convert.ToInt32(ConfigurationManager.AppSettings["LVLPageCount"]));
+
+                if (pagecount == 3)
+                {
+                    doc3 = web.Load(ConfigurationManager.AppSettings["LVL3"].ToString());
+                    PlayerNames.AddRange(doc3.DocumentNode
+                        .SelectNodes(ConfigurationManager.AppSettings["PlayerNodes"].ToString()).ToList());
+
+                }
+
+                //This selects all of the elements for the player name. Unfortunately it also selects the amount of replies which I will have to remove later.
+
+
+                PlayerNames.ForEach(x => x.InnerHtml = x.InnerHtml.Replace("&#39;", "'"));
 
                 //This removes the reply count from the Player Names list
                 RemoveRepliesFromPlayerNames(PlayerNames);
@@ -379,22 +765,80 @@ namespace WebScaper
                 PlayerTPE.AddRange(doc2.DocumentNode
                     .SelectNodes(ConfigurationManager.AppSettings["TPENodes"].ToString()).ToList());
 
+                if (pagecount == 3)
+                {
+                    PlayerTPE.AddRange(doc3.DocumentNode
+                        .SelectNodes(ConfigurationManager.AppSettings["TPENodes"].ToString()).ToList());
+                }
+
+                int switcher = 1;
+                List<string> href1 = new List<string>();
+                foreach (HtmlNode node in doc.DocumentNode.SelectNodes(ConfigurationManager.AppSettings["PlayerURL"]))
+                {
+                    if (switcher == 1)
+                    {
+                        String[] x = node.OuterHtml.Split('"');
+
+                        href1.Add(x[1].ToString());
+                        switcher *= -1;
+                    }
+                    else
+                    {
+                        switcher *= -1;
+                    }
+                }
+
+                switcher = 1;
+                foreach (HtmlNode node in doc2.DocumentNode.SelectNodes(ConfigurationManager.AppSettings["PlayerURL"]))
+                {
+                    if (switcher == 1)
+                    {
+                        String[] x = node.OuterHtml.Split('"');
+
+                        href1.Add(x[1].ToString());
+                        switcher *= -1;
+                    }
+                    else
+                    {
+                        switcher *= -1;
+                    }
+                }
+
+                switcher = 1;
+                foreach (HtmlNode node in doc3.DocumentNode.SelectNodes(ConfigurationManager.AppSettings["PlayerURL"]))
+                {
+                    if (switcher == 1)
+                    {
+                        String[] x = node.OuterHtml.Split('"');
+
+                        href1.Add(x[1].ToString());
+                        switcher *= -1;
+                    }
+                    else
+                    {
+                        switcher *= -1;
+                    }
+                }
+
+
                 //This combines the player Name and the PlayerName
                 var NameAndTPE = PlayerNames.Zip(PlayerTPE, (n, t) => new { PlayerNames = n, PlayerTPE = t });
 
+                var NameAndTPEAndURL = NameAndTPE.Zip(href1, (x, y) => new { NameAndTPE = x, href1 = y });
+
                 System.IO.StreamWriter file1 = new System.IO.StreamWriter(ConfigurationManager.AppSettings["LocalPath"] + "LVLPlayers.txt");
-                foreach (var nt in NameAndTPE)
+                foreach (var nt in NameAndTPEAndURL)
                 {
                     //I need to output this to a text file named SabercatsPlayers
-                    file1.WriteLine(nt.PlayerNames.InnerText + "," + nt.PlayerTPE.InnerText + ",");
+                    file1.WriteLine(nt.NameAndTPE.PlayerNames.InnerText + "," + nt.NameAndTPE.PlayerTPE.InnerText + ", " + nt.href1.ToString());
                 }
 
                 file1.Close();
                 file1.Dispose();
 
-                string[] SJSTPETotal = System.IO.File.ReadAllLines(ConfigurationManager.AppSettings["LocalPath"] + "LVLPlayers.txt");
+                string[] LVLTPETotal = System.IO.File.ReadAllLines(ConfigurationManager.AppSettings["LocalPath"] + "LVLPlayers.txt");
                 List<int> Total = new List<int>();
-                foreach (string line in SJSTPETotal)
+                foreach (string line in LVLTPETotal)
                 {
                     string[] splitwords = line.Split(',');
                     string[] splitAgain = splitwords[1].Split(':');
@@ -412,16 +856,30 @@ namespace WebScaper
 
             #region Otters
             {
+
                 HtmlAgilityPack.HtmlDocument doc = web.Load(ConfigurationManager.AppSettings["OCO1"].ToString());
                 HtmlAgilityPack.HtmlDocument doc2 = web.Load(ConfigurationManager.AppSettings["OCO2"].ToString());
-
-
-                //This selects all of the elements for the player name. Unfortunately it also selects the amount of replies which I will have to remove later.
+                HtmlAgilityPack.HtmlDocument doc3 = null;
                 var PlayerNames = doc.DocumentNode
                     .SelectNodes(ConfigurationManager.AppSettings["PlayerNodes"].ToString()).ToList();
 
                 PlayerNames.AddRange(doc2.DocumentNode
                     .SelectNodes(ConfigurationManager.AppSettings["PlayerNodes"].ToString()).ToList());
+
+                int pagecount = (Convert.ToInt32(ConfigurationManager.AppSettings["OCOPageCount"]));
+
+                if (pagecount == 3)
+                {
+                    doc3 = web.Load(ConfigurationManager.AppSettings["OCO3"].ToString());
+                    PlayerNames.AddRange(doc3.DocumentNode
+                        .SelectNodes(ConfigurationManager.AppSettings["PlayerNodes"].ToString()).ToList());
+
+                }
+
+                //This selects all of the elements for the player name. Unfortunately it also selects the amount of replies which I will have to remove later.
+
+
+                PlayerNames.ForEach(x => x.InnerHtml = x.InnerHtml.Replace("&#39;", "'"));
 
                 //This removes the reply count from the Player Names list
                 RemoveRepliesFromPlayerNames(PlayerNames);
@@ -433,22 +891,80 @@ namespace WebScaper
                 PlayerTPE.AddRange(doc2.DocumentNode
                     .SelectNodes(ConfigurationManager.AppSettings["TPENodes"].ToString()).ToList());
 
+                if (pagecount == 3)
+                {
+                    PlayerTPE.AddRange(doc3.DocumentNode
+                        .SelectNodes(ConfigurationManager.AppSettings["TPENodes"].ToString()).ToList());
+                }
+
+                int switcher = 1;
+                List<string> href1 = new List<string>();
+                foreach (HtmlNode node in doc.DocumentNode.SelectNodes(ConfigurationManager.AppSettings["PlayerURL"]))
+                {
+                    if (switcher == 1)
+                    {
+                        String[] x = node.OuterHtml.Split('"');
+
+                        href1.Add(x[1].ToString());
+                        switcher *= -1;
+                    }
+                    else
+                    {
+                        switcher *= -1;
+                    }
+                }
+
+                switcher = 1;
+                foreach (HtmlNode node in doc2.DocumentNode.SelectNodes(ConfigurationManager.AppSettings["PlayerURL"]))
+                {
+                    if (switcher == 1)
+                    {
+                        String[] x = node.OuterHtml.Split('"');
+
+                        href1.Add(x[1].ToString());
+                        switcher *= -1;
+                    }
+                    else
+                    {
+                        switcher *= -1;
+                    }
+                }
+
+                switcher = 1;
+                foreach (HtmlNode node in doc3.DocumentNode.SelectNodes(ConfigurationManager.AppSettings["PlayerURL"]))
+                {
+                    if (switcher == 1)
+                    {
+                        String[] x = node.OuterHtml.Split('"');
+
+                        href1.Add(x[1].ToString());
+                        switcher *= -1;
+                    }
+                    else
+                    {
+                        switcher *= -1;
+                    }
+                }
+
+
                 //This combines the player Name and the PlayerName
                 var NameAndTPE = PlayerNames.Zip(PlayerTPE, (n, t) => new { PlayerNames = n, PlayerTPE = t });
 
+                var NameAndTPEAndURL = NameAndTPE.Zip(href1, (x, y) => new { NameAndTPE = x, href1 = y });
+
                 System.IO.StreamWriter file1 = new System.IO.StreamWriter(ConfigurationManager.AppSettings["LocalPath"] + "OCOPlayers.txt");
-                foreach (var nt in NameAndTPE)
+                foreach (var nt in NameAndTPEAndURL)
                 {
                     //I need to output this to a text file named SabercatsPlayers
-                    file1.WriteLine(nt.PlayerNames.InnerText + "," + nt.PlayerTPE.InnerText + ",");
+                    file1.WriteLine(nt.NameAndTPE.PlayerNames.InnerText + "," + nt.NameAndTPE.PlayerTPE.InnerText + ", " + nt.href1.ToString());
                 }
 
                 file1.Close();
                 file1.Dispose();
 
-                string[] SJSTPETotal = System.IO.File.ReadAllLines(ConfigurationManager.AppSettings["LocalPath"] + "OCOPlayers.txt");
+                string[] OCOTPETotal = System.IO.File.ReadAllLines(ConfigurationManager.AppSettings["LocalPath"] + "OCOPlayers.txt");
                 List<int> Total = new List<int>();
-                foreach (string line in SJSTPETotal)
+                foreach (string line in OCOTPETotal)
                 {
                     string[] splitwords = line.Split(',');
                     string[] splitAgain = splitwords[1].Split(':');
@@ -464,6 +980,24 @@ namespace WebScaper
 
             #endregion
 
+        }
+
+        private static void GetURLs(HtmlDocument document, int switcher, List<string> href1)
+        {
+            foreach (HtmlNode node in document.DocumentNode.SelectNodes(ConfigurationManager.AppSettings["PlayerURL"]))
+            {
+                if (switcher == 1)
+                {
+                    String[] x = node.OuterHtml.Split('"');
+
+                    href1.Add(x[1].ToString());
+                    switcher *= -1;
+                }
+                else
+                {
+                    switcher *= -1;
+                }
+            }
         }
 
         private static void RemoveRepliesFromPlayerNames(List<HtmlAgilityPack.HtmlNode> PlayerNames)
