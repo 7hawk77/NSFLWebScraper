@@ -444,17 +444,17 @@ namespace WebScaper
 
             #region Legion
             {
-                HtmlAgilityPack.HtmlDocument doc = web.Load(ConfigurationManager.AppSettings["AO1"].ToString());
-                HtmlAgilityPack.HtmlDocument doc2 = web.Load(ConfigurationManager.AppSettings["AO2"].ToString());
+                HtmlAgilityPack.HtmlDocument doc = web.Load(ConfigurationManager.AppSettings["LVL1"].ToString());
+                HtmlAgilityPack.HtmlDocument doc2 = web.Load(ConfigurationManager.AppSettings["LVL2"].ToString());
                 HtmlAgilityPack.HtmlDocument doc3 = null;
                 List<HtmlNode> PlayerNames = GetNodes(doc, ConfigurationManager.AppSettings["PlayerNodes"].ToString());
                 PlayerNames.AddRange(GetNodes(doc2, ConfigurationManager.AppSettings["PlayerNodes"].ToString()).ToList());
 
-                int pagecount = (Convert.ToInt32(ConfigurationManager.AppSettings["AOPageCount"]));
+                int pagecount = (Convert.ToInt32(ConfigurationManager.AppSettings["LVLPageCount"]));
 
                 if (pagecount == 3)
                 {
-                    doc3 = web.Load(ConfigurationManager.AppSettings["AO3"].ToString());
+                    doc3 = web.Load(ConfigurationManager.AppSettings["LVL3"].ToString());
                     PlayerNames.AddRange(GetNodes(doc3, ConfigurationManager.AppSettings["PlayerNodes"].ToString()).ToList());
                 }
 
@@ -488,7 +488,7 @@ namespace WebScaper
                 var NameAndTPE = PlayerNames.Zip(PlayerTPE, (n, t) => new { PlayerNames = n, PlayerTPE = t });
                 var NameAndTPEAndURL = NameAndTPE.Zip(href1, (x, y) => new { NameAndTPE = x, href1 = y });
 
-                System.IO.StreamWriter file1 = new System.IO.StreamWriter(ConfigurationManager.AppSettings["LocalPath"] + "AOPlayers.txt");
+                System.IO.StreamWriter file1 = new System.IO.StreamWriter(ConfigurationManager.AppSettings["LocalPath"] + "LVLPlayers.txt");
                 foreach (var nt in NameAndTPEAndURL)
                 {
                     //I need to output this to a text file named SabercatsPlayers
@@ -497,7 +497,7 @@ namespace WebScaper
 
                 CloseAndDispose(file1);
 
-                string[] SJSTPETotal = System.IO.File.ReadAllLines(ConfigurationManager.AppSettings["LocalPath"] + "AOPlayers.txt");
+                string[] SJSTPETotal = System.IO.File.ReadAllLines(ConfigurationManager.AppSettings["LocalPath"] + "LVLPlayers.txt");
                 List<int> Total = new List<int>();
                 foreach (string line in SJSTPETotal)
                 {
@@ -506,9 +506,9 @@ namespace WebScaper
                     Total.Add(Convert.ToInt32(splitAgain[1]));
                 }
 
-                System.IO.StreamWriter file2 = new System.IO.StreamWriter(ConfigurationManager.AppSettings["LocalPath"] + "AOTeam.txt");
+                System.IO.StreamWriter file2 = new System.IO.StreamWriter(ConfigurationManager.AppSettings["LocalPath"] + "LVLTeam.txt");
 
-                file2.WriteLine("Arizona Outlaws' TPE: " + Total.Sum());
+                file2.WriteLine("Las Vegas Legions' TPE: " + Total.Sum());
                 CloseAndDispose(file2);
             }
 
