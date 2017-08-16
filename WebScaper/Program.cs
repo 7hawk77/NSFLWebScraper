@@ -20,10 +20,24 @@ namespace WebScaper
                 HtmlAgilityPack.HtmlDocument doc = web.Load(ConfigurationManager.AppSettings["SJS1"].ToString());
                 HtmlAgilityPack.HtmlDocument doc2 = web.Load(ConfigurationManager.AppSettings["SJS2"].ToString());
                 HtmlAgilityPack.HtmlDocument doc3 = null;
-                List<HtmlNode> PlayerNames = GetNodes(doc, ConfigurationManager.AppSettings["PlayerNodes"].ToString());
+                int pagecount;
+                    HtmlNodeCollection blah = doc.DocumentNode.SelectNodes(ConfigurationManager.AppSettings["PaginationPage"]);
+                    if (blah == null)
+                    {
+                        pagecount = 1;
+                    }
+                    else
+                    {
+                        string s = blah[0].InnerText.Split('(')[1];
+                        pagecount = (Convert.ToInt32(s.Split(')')[0]));
+                    }
+                //List<HtmlNode> blah = GetNodes(doc, ConfigurationManager.AppSettings["PaginationPage"].ToString());
+
+
+                List <HtmlNode> PlayerNames = GetNodes(doc, ConfigurationManager.AppSettings["PlayerNodes"].ToString());
                 PlayerNames.AddRange(GetNodes(doc2, ConfigurationManager.AppSettings["PlayerNodes"].ToString()).ToList());
 
-                int pagecount = (Convert.ToInt32(ConfigurationManager.AppSettings["SJSPageCount"]));
+                //int pagecount = (Convert.ToInt32(ConfigurationManager.AppSettings["SJSPageCount"]));
 
                 if (pagecount == 3)
                 {
@@ -586,6 +600,78 @@ namespace WebScaper
 
             #endregion
 
+        }
+
+        private static void DoStuff(string d1, string d2, string d3,int pagecountarg, string teamAbrv)
+        {
+            HtmlAgilityPack.HtmlWeb web = new HtmlAgilityPack.HtmlWeb();
+
+            HtmlAgilityPack.HtmlDocument doc = web.Load(d1);
+            HtmlAgilityPack.HtmlDocument doc2 = web.Load(d2);
+            HtmlAgilityPack.HtmlDocument doc3 = null;
+            List<HtmlNode> PlayerNames = GetNodes(doc, ConfigurationManager.AppSettings["PlayerNodes"].ToString());
+            PlayerNames.AddRange(GetNodes(doc2, ConfigurationManager.AppSettings["PlayerNodes"].ToString()).ToList());
+
+            int pagecount = (pagecountarg);
+
+            if (pagecount == 3)
+            {
+                doc3 = web.Load(d3);
+                PlayerNames.AddRange(GetNodes(doc3, ConfigurationManager.AppSettings["PlayerNodes"].ToString()).ToList());
+            }
+
+            PlayerNames.ForEach(x => x.InnerHtml = x.InnerHtml.Replace("&#39;", "'"));
+
+            //This removes the reply count from the Player Names list
+            RemoveRepliesFromPlayerNames(PlayerNames);
+
+            //This gets the player TPE
+            var PlayerTPE = GetNodes(doc, ConfigurationManager.AppSettings["TPENodes"].ToString());
+
+            PlayerTPE.AddRange(GetNodes(doc2, ConfigurationManager.AppSettings["TPENodes"].ToString()).ToList());
+
+            if (pagecount == 3)
+            {
+                PlayerTPE.AddRange(GetNodes(doc3, ConfigurationManager.AppSettings["TPENodes"].ToString()).ToList());
+            }
+
+            int switcher = 1;
+            List<string> href1 = new List<string>();
+            GetURLs(doc, switcher, href1);
+            switcher = 1;
+            GetURLs(doc2, switcher, href1);
+            switcher = 1;
+            if (pagecount == 3)
+            {
+                GetURLs(doc3, switcher, href1);
+            }
+
+            //This combines the player Name and the PlayerName
+            var NameAndTPE = PlayerNames.Zip(PlayerTPE, (n, t) => new { PlayerNames = n, PlayerTPE = t });
+            var NameAndTPEAndURL = NameAndTPE.Zip(href1, (x, y) => new { NameAndTPE = x, href1 = y });
+
+            System.IO.StreamWriter file1 = new System.IO.StreamWriter(ConfigurationManager.AppSettings["LocalPath"] + teamAbrv+"Players.txt");
+            foreach (var nt in NameAndTPEAndURL)
+            {
+                //I need to output this to a text file named SabercatsPlayers
+                file1.WriteLine(nt.NameAndTPE.PlayerNames.InnerText + "," + nt.NameAndTPE.PlayerTPE.InnerText + ", " + nt.href1.ToString() + ",");
+            }
+
+            CloseAndDispose(file1);
+
+            string[] SJSTPETotal = System.IO.File.ReadAllLines(ConfigurationManager.AppSettings["LocalPath"] + teamAbrv+"Players.txt");
+            List<int> Total = new List<int>();
+            foreach (string line in SJSTPETotal)
+            {
+                string[] splitwords = line.Split(',');
+                string[] splitAgain = splitwords[1].Split(':');
+                Total.Add(Convert.ToInt32(splitAgain[1]));
+            }
+
+            System.IO.StreamWriter file2 = new System.IO.StreamWriter(ConfigurationManager.AppSettings["LocalPath"] + teamAbrv+"Team.txt");
+
+            file2.WriteLine(teamAbrv+"' TPE: " + Total.Sum());
+            CloseAndDispose(file2);
         }
 
         private static void CloseAndDispose(System.IO.StreamWriter file1)
