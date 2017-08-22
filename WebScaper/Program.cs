@@ -43,6 +43,7 @@ namespace WebScaper
             }
 
             List<HtmlNode> PlayerNames = GetNodes(doc, ConfigurationManager.AppSettings["PlayerNodes"].ToString());
+
             PlayerNames.AddRange(GetNodes(doc2, ConfigurationManager.AppSettings["PlayerNodes"].ToString()).ToList());
 
             if (pagecount == 3)
@@ -70,15 +71,12 @@ namespace WebScaper
                 }
             }
 
-            int switcher = 1;
             List<string> href1 = new List<string>();
-            GetURLs(doc, switcher, href1);
-            switcher = 1;
-            GetURLs(doc2, switcher, href1);
-            switcher = 1;
+            GetURLs(doc, href1);
+            GetURLs(doc2, href1);
             if (pagecount == 3)
             {
-                GetURLs(doc3, switcher, href1);
+                GetURLs(doc3, href1);
             }
 
             var NameAndTPE = PlayerNames.Zip(PlayerTPE, (n, t) => new { PlayerNames = n, PlayerTPE = t });
@@ -119,15 +117,18 @@ namespace WebScaper
                                 .SelectNodes(config.ToString()).ToList();
         }
 
-        private static void GetURLs(HtmlDocument document, int switcher, List<string> href1)
+        private static void GetURLs(HtmlDocument document, List<string> href1)
         {
+            int switcher = 1;
             foreach (HtmlNode node in document.DocumentNode.SelectNodes(ConfigurationManager.AppSettings["PlayerURL"]))
             {
                 if (switcher == 1)
                 {
                     String[] x = node.OuterHtml.Split('"');
 
-                    href1.Add(x[1].ToString());
+                    var playerURL = x[1].Replace("&amp;", "&");
+                    playerURL = "http://nsfl.jcink.net/index.php?" + playerURL.Split('&').Last();
+                    href1.Add(playerURL.ToString());
                     switcher *= -1;
                 }
                 else
